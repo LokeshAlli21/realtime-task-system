@@ -1,8 +1,9 @@
 import http from 'http'
 import app from './src/app.js'
 import { Server } from 'socket.io'
+import env from './src/env/env.js'
 
-const PORT = process.env.PORT || 5000
+const PORT = env.port|| 5000
 
 const server = http.createServer(app)
 

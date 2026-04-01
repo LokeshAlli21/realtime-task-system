@@ -2,6 +2,9 @@ import express from 'express'
 import cors from 'cors'
 import {query} from './config/db.js'
 import env from './env/env.js'
+import authRouter from './routes/auth.routes.js'
+import loggerMiddleware from './middlewares/logger.middleware.js'
+import userRouter from './routes/user.routes.js'
 
 const app = express()
 
@@ -12,7 +15,9 @@ app.use(cors({
 
 app.use(express.json())
 
-app.get('/test-db', async (req, res) => {
+app.use(loggerMiddleware)
+
+app.get('/api/test-db', async (req, res) => {
     try {
         const result = await query('SELECT NOW()')
         
@@ -30,5 +35,8 @@ app.get('/test-db', async (req, res) => {
 app.get('/', (req, res) => {
     res.send('API is running..')
 })
+
+app.use('/api/auth/', authRouter)
+app.use('/api/user', userRouter)
 
 export default app

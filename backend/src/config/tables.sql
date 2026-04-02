@@ -4,6 +4,7 @@ CREATE TABLE users (
   name TEXT,
   email TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
+  is_deleted BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -15,6 +16,7 @@ CREATE TABLE tasks (
   status TEXT NOT NULL CHECK (status IN ('todo', 'in_progress', 'done')),
   created_by UUID REFERENCES users(id) ON DELETE SET NULL,
   assigned_to UUID REFERENCES users(id) ON DELETE SET NULL,
+  is_deleted BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );

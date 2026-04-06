@@ -6,6 +6,7 @@ import authRouter from './routes/auth.routes.js'
 import loggerMiddleware from './middlewares/logger.middleware.js'
 import userRouter from './routes/user.routes.js'
 import taskRouter from './routes/task.routes.js'
+import activityRoutes from './routes/activity.routes.js'
 
 const app = express()
 
@@ -40,5 +41,6 @@ app.get('/', (req, res) => {
 app.use('/api/auth/', authRouter)
 app.use('/api/user', userRouter)
 app.use('/api/tasks', taskRouter)
+app.use('/api/activities', activityRoutes)
 
 export default app

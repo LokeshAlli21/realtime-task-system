@@ -65,7 +65,7 @@ export const login = async (req, res, next) => {
         }
 
         const result = await query(
-            'select * from users where email = $1',
+            'select * from users where email = $1 and is_deleted = false',
             [email]
         )
 

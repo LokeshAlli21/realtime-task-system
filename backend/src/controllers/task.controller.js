@@ -1,4 +1,5 @@
 import { query } from '../config/db.js'
+import { logActivity } from '../utils/activity.js'
 
 const allowedStatus = ['todo', 'in_progress', 'done']
 
@@ -25,13 +26,22 @@ export const createTask = async (req, res, next) => {
             `insert into tasks (title, description, status, created_by, assigned_to)
             values ($1, $2, $3, $4, $5)
             returning *`,
-            [title, description || null, status, created_by, assigned_to || null]
+            [title, description || null, taskStatus, created_by, assigned_to || null]
         )
+
+        let task = result.rows[0]
+
+        await logActivity({
+            type: 'task_created',
+            task_id: task.id,
+            user_id: req.user.id,
+            message: `Task "${task.title}" is created`
+        })
 
         return res.status(201).json({
             success: true,
             message: 'Task is created.',
-            task: result.rows[0],
+            task,
         })
 
     } catch (error) {
@@ -129,10 +139,28 @@ export const updateTask = async (req, res, next) => {
              [title, description, status, assigned_to, id]
         )
 
+        const updatedTask = result.rows[0]
+
+        await logActivity({
+            type: 'task_updated',
+            task_id: updatedTask.id,
+            user_id: req.user.id,
+            message: `Task "${updatedTask.title}" is updated`,
+        })
+
+        if(assigned_to && assigned_to !== updatedTask.assigned_to){
+            await logActivity({
+                type: 'task_assigned',
+                task_id: updatedTask.id,
+                user_id: req.user.id,
+                message: `Task assigned to user ${assigned_to}`
+            })
+        }
+
         return res.status(200).json({
             success: true,
             message: 'Task Updated',
-            taks: result.rows[0]
+            task: updatedTask,
         })
 
     } catch (error) {
@@ -174,6 +202,13 @@ export const deleteTask = async (req, res, next) => {
             where id = $1`,
             [id]
         )
+
+        await logActivity({
+            type: 'task_deleted',
+            task_id: id,
+            user_id: req.user.id,
+            message: 'Task deleted'
+        })
 
         return res.json({
             success: true,

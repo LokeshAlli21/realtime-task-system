@@ -1,5 +1,9 @@
-import { query } from '../config/db.js'
-import { logActivity } from '../utils/activity.js'
+import { 
+    createTaskService,
+    getAllTasksService,
+    updateTaskService,
+    deleteTaskService,
+} from '../services/task.service.js'
 
 const allowedStatus = ['todo', 'in_progress', 'done']
 
@@ -20,22 +24,13 @@ export const createTask = async (req, res, next) => {
                 message: 'Invalid status value!'
             })
         }
-        const created_by = req.user.id
 
-        const result = await query(
-            `insert into tasks (title, description, status, created_by, assigned_to)
-            values ($1, $2, $3, $4, $5)
-            returning *`,
-            [title, description || null, taskStatus, created_by, assigned_to || null]
-        )
-
-        let task = result.rows[0]
-
-        await logActivity({
-            type: 'task_created',
-            task_id: task.id,
-            user_id: req.user.id,
-            message: `Task "${task.title}" is created`
+        const task = await createTaskService({
+            title,
+            description,
+            status: taskStatus,
+            assigned_to,
+            userId: req.user.id,
         })
 
         return res.status(201).json({
@@ -52,38 +47,23 @@ export const createTask = async (req, res, next) => {
 export const getAllTasks = async (req, res, next) => {
     try {
         const { status, assigned_to } = req.query
-        let baseQuery = `select * from tasks where is_deleted = false `
-        let values = []
-        let index = 1
 
-        if(status){
-            if(!allowedStatus.includes(status)){
-                return res.status(400).json({
-                    success: false,
-                    message: 'Invalid status filter!'
-                })
-            }
-
-            baseQuery += ` and status = $${index}`
-            values.push(status)
-            index++
+        if (status && !allowedStatus.includes(status)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid status filter!'
+            })
         }
 
-        if(assigned_to){
-            baseQuery += ` and assigned_to = $${index}`
-            values.push(assigned_to)
-            index++
-        }
-
-        // latest first
-        baseQuery += ` order by created_at desc`
-
-        const result = await query(baseQuery, values)
+        const tasks = await getAllTasksService({
+            status,
+            assigned_to
+        })
 
         return res.status(200).json({
             success: true,
-            count: result.rows.length,
-            tasks: result.rows
+            count: tasks.length,
+            tasks
         })
 
     } catch (error) {
@@ -96,66 +76,21 @@ export const updateTask = async (req, res, next) => {
         const { id } = req.params
         const { title, description, status, assigned_to } = req.body
 
-        const existing = await query(
-            `select * from tasks where id = $1 and is_deleted = false`,
-            [id]
-        )
-
-        if(existing.rows.length === 0){
-            return res.status(404).json({
-                success: false,
-                message: 'Task not found!'
-            })
-        }
-
-        const task = existing.rows[0]
-
-        if(
-            task.created_by !== req.user.id &&
-            task.assigned_to !== req.user.id
-        ){
-            return res.status(403).json({
-                success: false,
-                message: 'Not authorized to updated this task!'
-            })
-        }
-
-        if(status && !allowedStatus.includes(status)){
+        if (status && !allowedStatus.includes(status)) {
             return res.status(400).json({
                 success: false,
                 message: 'Invalid status'
             })
         }
 
-        const result = await query(
-            `UPDATE tasks SET
-                title = COALESCE($1, title),
-                description = COALESCE($2, description),
-                status = COALESCE($3, status),
-                assigned_to = COALESCE($4, assigned_to),
-                updated_at = NOW()
-             WHERE id = $5
-             RETURNING *`,
-             [title, description, status, assigned_to, id]
-        )
-
-        const updatedTask = result.rows[0]
-
-        await logActivity({
-            type: 'task_updated',
-            task_id: updatedTask.id,
-            user_id: req.user.id,
-            message: `Task "${updatedTask.title}" is updated`,
+        const updatedTask = await updateTaskService({
+            id,
+            title,
+            description,
+            status,
+            assigned_to,
+            userId: req.user.id
         })
-
-        if(assigned_to && assigned_to !== updatedTask.assigned_to){
-            await logActivity({
-                type: 'task_assigned',
-                task_id: updatedTask.id,
-                user_id: req.user.id,
-                message: `Task assigned to user ${assigned_to}`
-            })
-        }
 
         return res.status(200).json({
             success: true,
@@ -170,44 +105,11 @@ export const updateTask = async (req, res, next) => {
 
 export const deleteTask = async (req, res, next) => {
     try {
-        const {id} = req.params
+        const { id } = req.params
 
-        const existing = await query(
-            `select * from tasks where id = $1 and is_deleted = false`,
-            [id]
-        )
-
-        if(existing.rows.length === 0){
-            return res.status(404).json({
-                success: false,
-                message: 'Task not found!'
-            })
-        }
-
-        const task = existing.rows[0]
-
-        // only creator can delete
-        if(task.created_by !== req.user.id){
-            return res.status(403).json({
-                success: false,
-                message: 'Not authorized to deleted this task'
-            })
-        }
-
-        // soft delete
-        await query(
-            `update tasks
-            set is_deleted = true,
-                updated_at = NOW()
-            where id = $1`,
-            [id]
-        )
-
-        await logActivity({
-            type: 'task_deleted',
-            task_id: id,
-            user_id: req.user.id,
-            message: 'Task deleted'
+        await deleteTaskService({
+            id,
+            userId: req.user.id
         })
 
         return res.json({

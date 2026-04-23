@@ -1,7 +1,8 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login.jsx";
 import SignUp from "./pages/SignUp.jsx";
-import TestTask from "./pages/TestTask.jsx";
+import Dashboard from "./pages/Dashboard.jsx";
+import LogActivities from "./pages/LogActivities.jsx";
 
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem("token");
@@ -12,21 +13,19 @@ const PrivateRoute = ({ children }) => {
 function App() {
   return (
     <Routes>
-      {/* Public Routes */}
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<SignUp />} />
+      <Route path="/log-activities" element={<LogActivities />} />
 
-      {/* Protected Route */}
       <Route
         path="/"
         element={
           <PrivateRoute>
-            <TestTask />
+            <Dashboard />
           </PrivateRoute>
         }
       />
 
-      {/* Redirect unknown routes */}
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   );

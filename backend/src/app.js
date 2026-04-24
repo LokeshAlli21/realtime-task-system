@@ -10,10 +10,17 @@ import activityRoutes from './routes/activity.routes.js'
 
 const app = express()
 
+// app.use(cors({
+//     origin: env.frontendUrl || '*',
+//     credentials: true
+// }))
 app.use(cors({
-    origin: env.frontendUrl || '*',
-    credentials: true
-}))
+  origin: env.frontendUrl,
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
+app.options("*", cors());
 
 app.use(express.json())
 

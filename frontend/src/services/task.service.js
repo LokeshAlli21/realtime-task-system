@@ -82,6 +82,20 @@ class TaskService {
       throw err;
     }
   }
+
+  async getActivities() {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/activities`, {
+        method: "GET",
+        headers: this.getAuthHeaders(true),
+      });
+
+      return await res.json();
+    } catch (err) {
+      console.error("Get Tasks Error:", err);
+      throw err;
+    }
+  }
 }
 
 const taskService = new TaskService()

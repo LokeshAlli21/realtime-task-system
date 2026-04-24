@@ -1,43 +1,42 @@
-import { useState, useEffect } from "react";
-import axios from "axios";
+import { useState } from "react";
 import { useContext } from "react";
 import { AppContext } from "../context/AppContext";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
-import env from "../env.js";
+import authService from '../services/auth.service.js'
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const { setUser } = useContext(AppContext);
 
+  const { setUser } = useContext(AppContext);
   const navigate = useNavigate();
 
   const token = localStorage.getItem("token");
-  if (token) {
-    return <Navigate to="/" replace />;
-  }
-  
+  if (token) return <Navigate to="/" replace />;
 
-  const handleLogin = async (e) => {
+   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
 
     try {
-      const res = await axios.post(`${env.backendUrl}/api/auth/login`, {
-        email,
-        password,
-      });
+      const data = await authService.login({ email, password });
 
-      const token = res.data.token;
-      setUser(res?.data?.user);
-      localStorage.setItem("token", token);
+      if (!data.success) {
+        throw new Error(data.message);
+      }
+
+      localStorage.setItem("token", data.token);
+      setUser(data.user);
+
       console.log("✅ Login success");
+      navigate("/");
+
     } catch (err) {
-      setError(err.response?.data?.message || "Invalid email or password.");
-      console.error("❌ Login failed", err.response?.data || err.message);
+      setError(err.message || "Login failed");
+      console.error("❌ Login failed", err);
     } finally {
       setLoading(false);
     }

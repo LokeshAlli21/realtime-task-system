@@ -1,9 +1,8 @@
 import { useState } from "react";
-import axios from "axios";
 import { useContext } from "react";
 import { AppContext } from "../context/AppContext";
 import { Navigate, useNavigate } from "react-router-dom";
-import env from "../env.js";
+import authService from "../services/auth.service.js";
 
 const SignUp = () => {
   const [name, setName] = useState("");
@@ -19,28 +18,31 @@ const SignUp = () => {
     return <Navigate to="/" replace />;
   }
 
-  const handleSignUp = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-    try {
-      const res = await axios.post(`${env.backendUrl}/api/auth/signup`, {
-        name,
-        email,
-        password,
-      });
-      const token = res.data.token;
-      setUser(res?.data?.user);
-      localStorage.setItem("token", token);
-      console.log("✅ SignUp success");
-      navigate("/");
-    } catch (err) {
-      setError(err.response?.data?.message || "Signup failed. Please try again.");
-      console.error("❌ SignUp failed", err.response?.data || err.message);
-    } finally {
-      setLoading(false);
+const handleSignUp = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  setError("");
+
+  try {
+    const data = await authService.signup({ name, email, password });
+
+    if (!data.success) {
+      throw new Error(data.message);
     }
-  };
+
+    localStorage.setItem("token", data.token);
+    setUser(data.user);
+
+    console.log("✅ Signup success");
+    navigate("/");
+
+  } catch (err) {
+    setError(err.message || "Signup failed");
+    console.error("❌ Signup failed", err);
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-4">

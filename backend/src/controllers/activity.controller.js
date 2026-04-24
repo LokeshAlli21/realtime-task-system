@@ -10,7 +10,6 @@ export const getActivities = async (req, res, next) => {
             from activities a
             join tasks t on a.task_id = t.id
             where (t.created_by = $1 or t.assigned_to = $1)
-                and t.is_deleted = false
         `
         let values = [userId]
         let index = 2

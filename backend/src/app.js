@@ -39,7 +39,7 @@ app.get('/', (req, res) => {
 })
 
 app.use('/api/auth/', authRouter)
-app.use('/api/user', userRouter)
+app.use('/api/users', userRouter)
 app.use('/api/tasks', taskRouter)
 app.use('/api/activities', activityRoutes)
 

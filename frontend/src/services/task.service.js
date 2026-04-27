@@ -88,16 +88,21 @@ class TaskService {
     }
   }
 
-  async getActivities() {
+  async getActivities(filters = {}) {
     try {
-      const res = await fetch(`${this.baseUrl}/api/activities`, {
-        method: "GET",
-        headers: this.getAuthHeaders(true),
-      });
+      const query = new URLSearchParams(filters).toString();
+
+      const res = await fetch(
+        `${this.baseUrl}/api/activities${query ? `?${query}` : ""}`,
+        {
+          method: "GET",
+          headers: this.getAuthHeaders(true),
+        }
+      );
 
       return await res.json();
     } catch (err) {
-      console.error("Get Tasks Error:", err);
+      console.error("Get Activities Error:", err);
       throw err;
     }
   }

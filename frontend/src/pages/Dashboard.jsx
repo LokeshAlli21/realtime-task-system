@@ -5,6 +5,8 @@ import TaskService from "../services/task.service";
 import SocketService from "../services/socket.service";
 import taskService from "../services/task.service";
 import authService from "../services/auth.service";
+import ActivityFeed from "../components/ActivityFeed";
+import { formatRelativeTime } from "../components/ActivityFeed";
 
 const STATUS_CONFIG = {
   todo: {
@@ -45,18 +47,18 @@ const ACTIVITY_CONFIG = {
   },
 };
 
-const formatRelativeTime = (dateStr) => {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  const hours = Math.floor(mins / 60);
-  const days = Math.floor(hours / 24);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  return `${days}d ago`;
+/**
+ * Returns true when created_at and updated_at represent the same moment
+ * (within 1 second to handle minor DB rounding).
+ */
+const isSameTime = (a, b) => {
+  if (!a || !b) return true;
+  const normalize = (s) => (s.endsWith("Z") ? s : s + "Z");
+  return Math.abs(new Date(normalize(a)) - new Date(normalize(b))) < 1000;
 };
 
-// Avatar initials component
+// ─── Avatar ──────────────────────────────────────────────────────────────────
+
 const Avatar = ({ name, size = "sm" }) => {
   const initials = name
     ? name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)
@@ -80,7 +82,8 @@ const Avatar = ({ name, size = "sm" }) => {
   );
 };
 
-// Edit Task Modal
+// ─── Edit Task Modal ──────────────────────────────────────────────────────────
+
 const EditTaskModal = ({ task, users, currentUser, onClose, onSave }) => {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description || "");
@@ -106,7 +109,7 @@ const EditTaskModal = ({ task, users, currentUser, onClose, onSave }) => {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-md shadow-2xl">
@@ -197,7 +200,8 @@ const EditTaskModal = ({ task, users, currentUser, onClose, onSave }) => {
   );
 };
 
-// Task Card
+// ─── Task Card ────────────────────────────────────────────────────────────────
+
 const TaskCard = ({ task, users, currentUser, onUpdate, onDelete, onEdit }) => {
   const config = STATUS_CONFIG[task.status];
   const assignedUser = users.find((u) => u.id === task.assigned_to);
@@ -205,14 +209,16 @@ const TaskCard = ({ task, users, currentUser, onUpdate, onDelete, onEdit }) => {
 
   const isOwner = currentUser?.id === task.created_by;
   const isAssignee = currentUser?.id === task.assigned_to;
-  // Only owner or assignee can advance status; only owner can edit/delete
   const canAdvanceStatus = config.nextLabel && (isOwner || isAssignee);
   const canEdit = isOwner;
   const canDelete = isOwner;
 
-  // Label for assignee: "assigned to you" if it's the current user
   const assigneeLabel =
     assignedUser?.id === currentUser?.id ? "you" : assignedUser?.name;
+
+  const createdLabel = formatRelativeTime(task.created_at);
+  const updatedLabel = formatRelativeTime(task.updated_at);
+  const showUpdated = task.updated_at && !isSameTime(task.created_at, task.updated_at);
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 group hover:border-slate-700 transition-colors duration-150">
@@ -262,6 +268,22 @@ const TaskCard = ({ task, users, currentUser, onUpdate, onDelete, onEdit }) => {
         )}
       </div>
 
+      {/* Timestamps */}
+      {createdLabel && (
+        <div className="flex flex-wrap gap-x-3 gap-y-0.5 mb-3">
+          <span className="text-[10px] text-slate-600">
+            <span className="text-slate-700">created </span>
+            {createdLabel}
+          </span>
+          {showUpdated && (
+            <span className="text-[10px] text-slate-600">
+              <span className="text-slate-700">· updated </span>
+              {updatedLabel}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Actions row */}
       <div className="flex items-center gap-2 pt-2 border-t border-slate-800">
         {canAdvanceStatus && (
@@ -298,15 +320,15 @@ const TaskCard = ({ task, users, currentUser, onUpdate, onDelete, onEdit }) => {
   );
 };
 
-// Filter Bar
+// ─── Filter Bar ───────────────────────────────────────────────────────────────
+
 const FilterBar = ({ filters, setFilters, users }) => {
   const handleChange = (key, value) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
 
   return (
-    <div className="flex items-center gap-3 flex-wrap">
-      {/* Status filter */}
+    <div className="flex items-center gap-2 flex-wrap">
       <div className="relative">
         <select
           className="bg-slate-800 border border-slate-700 rounded-lg pl-3 pr-8 py-2 text-xs text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition appearance-none"
@@ -323,7 +345,6 @@ const FilterBar = ({ filters, setFilters, users }) => {
         </span>
       </div>
 
-      {/* Assigned To filter */}
       <div className="relative">
         <select
           className="bg-slate-800 border border-slate-700 rounded-lg pl-3 pr-8 py-2 text-xs text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition appearance-none"
@@ -343,7 +364,6 @@ const FilterBar = ({ filters, setFilters, users }) => {
         </span>
       </div>
 
-      {/* Clear filters */}
       {(filters.status || filters.assigned_to) && (
         <button
           onClick={() => setFilters({ status: "", assigned_to: "" })}
@@ -353,7 +373,6 @@ const FilterBar = ({ filters, setFilters, users }) => {
         </button>
       )}
 
-      {/* Active filter indicators */}
       {filters.status && (
         <span className={`text-xs px-2.5 py-1 rounded-full ${STATUS_CONFIG[filters.status]?.classes}`}>
           {STATUS_CONFIG[filters.status]?.label}
@@ -373,6 +392,8 @@ const FilterBar = ({ filters, setFilters, users }) => {
   );
 };
 
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+
 const Dashboard = () => {
   const { tasks, setTasks } = useContext(AppContext);
   const { user } = useContext(AppContext);
@@ -382,8 +403,6 @@ const Dashboard = () => {
   const [description, setDescription] = useState("");
   const [assignedTo, setAssignedTo] = useState("");
   const [isCreating, setIsCreating] = useState(false);
-  const [activities, setActivities] = useState([]);
-  const [activitiesLoading, setActivitiesLoading] = useState(false);
   const [users, setUsers] = useState([]);
   const [editingTask, setEditingTask] = useState(null);
   const [filters, setFilters] = useState({ status: "", assigned_to: "" });
@@ -398,31 +417,14 @@ const Dashboard = () => {
   const loadUsers = useCallback(async () => {
     try {
       const data = await authService.getAllUsers();
-      if (data.success) {
-        setUsers(data.users);
-      }
+      if (data.success) setUsers(data.users);
     } catch (err) {
       console.error(err);
     }
   }, []);
 
-  const loadActivities = useCallback(async () => {
-    setActivitiesLoading(true);
-    try {
-      const res = await taskService.getActivities();
-      const data = Array.isArray(res) ? res : res?.activities || [];
-      setActivities(data);
-    } catch (error) {
-      console.error("Load activities failed", error);
-      setActivities([]);
-    } finally {
-      setActivitiesLoading(false);
-    }
-  }, []);
-
   const loadTasks = useCallback(
     async (activeFilters = {}) => {
-      // Strip empty values so the service doesn't send blank query params
       const cleanFilters = Object.fromEntries(
         Object.entries(activeFilters).filter(([, v]) => v !== "")
       );
@@ -430,8 +432,6 @@ const Dashboard = () => {
         const res = await TaskService.getTasks(cleanFilters);
         const data = Array.isArray(res) ? res : res?.tasks || [];
         setTasks(data);
-        console.log(data);
-        
       } catch (err) {
         console.error("Load tasks failed", err);
         setTasks([]);
@@ -440,15 +440,13 @@ const Dashboard = () => {
     [setTasks]
   );
 
-  // Re-fetch whenever filters change
   useEffect(() => {
     loadTasks(filters);
   }, [filters, loadTasks]);
 
   useEffect(() => {
-    loadActivities();
     loadUsers();
-  }, [loadActivities, loadUsers]);
+  }, [ loadUsers]);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -458,26 +456,23 @@ const Dashboard = () => {
         const safePrev = Array.isArray(prev) ? prev : [];
         return [task, ...safePrev];
       });
-      loadActivities();
     });
     SocketService.onTaskUpdated(({ task }) => {
       setTasks((prev) => {
         const safePrev = Array.isArray(prev) ? prev : [];
         return safePrev.map((t) => (t.id === task.id ? task : t));
       });
-      loadActivities();
     });
     SocketService.onTaskDeleted(({ taskId }) => {
       setTasks((prev) => {
         const safePrev = Array.isArray(prev) ? prev : [];
         return safePrev.filter((t) => t.id !== taskId);
       });
-      loadActivities();
     });
     return () => {
       SocketService.offTaskEvents();
     };
-  }, [setTasks, loadActivities]);
+  }, [setTasks]);
 
   const handleCreate = async () => {
     if (!title.trim()) return;
@@ -534,7 +529,6 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-mono">
-      {/* Edit Modal */}
       {editingTask && (
         <EditTaskModal
           task={editingTask}
@@ -546,9 +540,9 @@ const Dashboard = () => {
       )}
 
       {/* Header */}
-      <header className="border-b border-slate-800 px-8 py-5 flex items-center justify-between">
+      <header className="border-b border-slate-800 px-4 sm:px-8 py-4 sm:py-5 flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-white">
+          <h1 className="text-lg sm:text-xl font-bold tracking-tight text-white">
             Task Dashboard
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
@@ -561,7 +555,7 @@ const Dashboard = () => {
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-2 text-xs text-emerald-400">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            Live
+            <span className="hidden sm:inline">Live</span>
           </span>
           <button
             onClick={handleLogout}
@@ -572,8 +566,8 @@ const Dashboard = () => {
         </div>
       </header>
 
-      {/* Main: two-column split */}
-      <div className="flex gap-6 px-8 py-8 max-w-7xl mx-auto">
+      {/* Main: responsive split — stacks on mobile */}
+      <div className="flex flex-col lg:flex-row gap-6 px-4 sm:px-8 py-6 sm:py-8 max-w-7xl mx-auto">
         {/* LEFT — Tasks */}
         <main className="flex-1 min-w-0 space-y-8">
           {/* Create Task */}
@@ -581,7 +575,7 @@ const Dashboard = () => {
             <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-4">
               New Task
             </h2>
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 sm:p-5 space-y-3">
               <input
                 className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
                 placeholder="Task title"
@@ -597,7 +591,6 @@ const Dashboard = () => {
                 onKeyDown={(e) => e.key === "Enter" && handleCreate()}
               />
 
-              {/* Assign To dropdown */}
               <div className="relative">
                 <select
                   className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition appearance-none"
@@ -616,7 +609,6 @@ const Dashboard = () => {
                 </span>
               </div>
 
-              {/* Assigned user preview */}
               {assignedTo && (
                 <div className="flex items-center gap-2 px-1">
                   <Avatar
@@ -644,7 +636,7 @@ const Dashboard = () => {
 
           {/* Task Columns */}
           <section>
-            <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+            <div className="flex items-start sm:items-center justify-between mb-4 flex-col sm:flex-row gap-3">
               <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500">
                 Tasks
               </h2>
@@ -662,7 +654,7 @@ const Dashboard = () => {
                   : "No tasks yet. Create one above."}
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {Object.entries(STATUS_CONFIG).map(([status, config]) => (
                   <div key={status} className="space-y-3">
                     <div className="flex items-center gap-2">
@@ -700,70 +692,15 @@ const Dashboard = () => {
           </section>
         </main>
 
-        {/* RIGHT — Activity Feed */}
-        <aside className="w-72 shrink-0">
-          <div className="sticky top-8">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500">
-                Activity
-              </h2>
-              <button
-                onClick={loadActivities}
-                disabled={activitiesLoading}
-                className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-indigo-400 border border-slate-700 hover:border-indigo-600 rounded-lg px-2.5 py-1 transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <span
-                  className={`inline-block ${activitiesLoading ? "animate-spin" : ""}`}
-                >
-                  ↻
-                </span>
-                Refresh
-              </button>
-            </div>
-
-            <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-              {activitiesLoading ? (
-                <div className="flex items-center justify-center py-12 text-slate-600 text-xs">
-                  Loading...
-                </div>
-              ) : activities.length === 0 ? (
-                <div className="flex items-center justify-center py-12 text-slate-600 text-xs">
-                  No activity yet.
-                </div>
-              ) : (
-                <ul className="divide-y divide-slate-800 max-h-[calc(100vh-12rem)] overflow-y-auto">
-                  {activities.map((activity) => {
-                    const cfg =
-                      ACTIVITY_CONFIG[activity.type] ||
-                      ACTIVITY_CONFIG.task_updated;
-                    return (
-                      <li
-                        key={activity.id}
-                        className="flex items-start gap-3 px-4 py-3 hover:bg-slate-800/50 transition-colors duration-100"
-                      >
-                        <span
-                          className={`mt-0.5 text-base leading-none font-bold ${cfg.classes}`}
-                        >
-                          {cfg.icon}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs text-slate-300 leading-snug truncate">
-                            {activity.message}
-                          </p>
-                          <p className="text-xs text-slate-600 mt-0.5">
-                            {formatRelativeTime(activity.created_at)}
-                          </p>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
-
-            {/* Team Members */}
+        <aside className="w-full lg:w-72 lg:shrink-0">
+          <div className="lg:sticky lg:top-8 space-y-6">
+        
+            {/* Activity Feed — fully self-contained */}
+            <ActivityFeed />
+        
+            {/* Team Members — unchanged */}
             {users.length > 0 && (
-              <div className="mt-6">
+              <div>
                 <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-3">
                   Team
                 </h2>
@@ -774,23 +711,16 @@ const Dashboard = () => {
                         (t) => t.assigned_to === u.id && t.status !== "done"
                       ).length;
                       return (
-                        <li
-                          key={u.id}
-                          className="flex items-center gap-3 px-4 py-3"
-                        >
+                        <li key={u.id} className="flex items-center gap-3 px-4 py-3">
                           <Avatar name={u.name} size="md" />
                           <div className="flex-1 min-w-0">
                             <p className="text-xs font-medium text-slate-200 truncate">
                               {u.name}
                               {u.id === user?.id && (
-                                <span className="ml-1.5 text-[10px] text-indigo-400">
-                                  you
-                                </span>
+                                <span className="ml-1.5 text-[10px] text-indigo-400">you</span>
                               )}
                             </p>
-                            <p className="text-[10px] text-slate-600 truncate">
-                              {u.email}
-                            </p>
+                            <p className="text-[10px] text-slate-600 truncate">{u.email}</p>
                           </div>
                           {assignedCount > 0 && (
                             <span className="text-[10px] font-semibold bg-indigo-900/60 text-indigo-300 border border-indigo-800 rounded-full px-2 py-0.5">

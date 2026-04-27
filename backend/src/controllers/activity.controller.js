@@ -6,8 +6,9 @@ export const getActivities = async (req, res, next) => {
         const {type, task_id} = req.query
 
         let baseQuery = `
-            select a.*
+            select a.*, u.name as user_name
             from activities a
+            join users u on user_id = u.id
             join tasks t on a.task_id = t.id
             where (t.created_by = $1 or t.assigned_to = $1)
         `

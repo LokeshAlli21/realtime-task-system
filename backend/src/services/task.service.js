@@ -41,9 +41,13 @@ export const getAllTasksService = async ({ status, assigned_to }) => {
     }
 
     if (assigned_to) {
-        baseQuery += ` and assigned_to = $${index}`
-        values.push(assigned_to)
-        index++
+        if (assigned_to === 'unassigned') {
+            baseQuery += ` and assigned_to IS NULL`
+        } else {
+            baseQuery += ` and assigned_to = $${index}`
+            values.push(assigned_to)
+            index++
+        }
     }
 
     baseQuery += ` order by created_at desc`

@@ -69,9 +69,7 @@ const Avatar = ({ name, size = "sm" }) => {
     "bg-amber-500",
     "bg-emerald-500",
   ];
-  const colorIndex = name
-    ? name.charCodeAt(0) % colors.length
-    : 0;
+  const colorIndex = name ? name.charCodeAt(0) % colors.length : 0;
   const sizeClass = size === "sm" ? "w-6 h-6 text-[10px]" : "w-8 h-8 text-xs";
   return (
     <span
@@ -200,10 +198,21 @@ const EditTaskModal = ({ task, users, currentUser, onClose, onSave }) => {
 };
 
 // Task Card
-const TaskCard = ({ task, users, onUpdate, onDelete, onEdit }) => {
+const TaskCard = ({ task, users, currentUser, onUpdate, onDelete, onEdit }) => {
   const config = STATUS_CONFIG[task.status];
   const assignedUser = users.find((u) => u.id === task.assigned_to);
   const createdByUser = users.find((u) => u.id === task.created_by);
+
+  const isOwner = currentUser?.id === task.created_by;
+  const isAssignee = currentUser?.id === task.assigned_to;
+  // Only owner or assignee can advance status; only owner can edit/delete
+  const canAdvanceStatus = config.nextLabel && (isOwner || isAssignee);
+  const canEdit = isOwner;
+  const canDelete = isOwner;
+
+  // Label for assignee: "assigned to you" if it's the current user
+  const assigneeLabel =
+    assignedUser?.id === currentUser?.id ? "you" : assignedUser?.name;
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 group hover:border-slate-700 transition-colors duration-150">
@@ -223,7 +232,11 @@ const TaskCard = ({ task, users, onUpdate, onDelete, onEdit }) => {
             <Avatar name={assignedUser.name} size="sm" />
             <span className="text-xs text-slate-400">
               <span className="text-slate-600">assigned to </span>
-              {assignedUser.name}
+              {assigneeLabel === "you" ? (
+                <span className="text-indigo-400 font-medium">you</span>
+              ) : (
+                assigneeLabel
+              )}
             </span>
           </div>
         ) : (
@@ -238,7 +251,12 @@ const TaskCard = ({ task, users, onUpdate, onDelete, onEdit }) => {
           <div className="flex items-center gap-2">
             <Avatar name={createdByUser.name} size="sm" />
             <span className="text-xs text-slate-600">
-              by {createdByUser.name}
+              by{" "}
+              {createdByUser.id === currentUser?.id ? (
+                <span className="text-slate-500">you</span>
+              ) : (
+                createdByUser.name
+              )}
             </span>
           </div>
         )}
@@ -246,7 +264,7 @@ const TaskCard = ({ task, users, onUpdate, onDelete, onEdit }) => {
 
       {/* Actions row */}
       <div className="flex items-center gap-2 pt-2 border-t border-slate-800">
-        {config.nextLabel && (
+        {canAdvanceStatus && (
           <button
             onClick={() => onUpdate(task)}
             className="text-xs text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
@@ -255,20 +273,102 @@ const TaskCard = ({ task, users, onUpdate, onDelete, onEdit }) => {
           </button>
         )}
         <div className="ml-auto flex items-center gap-2">
-          <button
-            onClick={() => onEdit(task)}
-            className="text-xs text-slate-500 hover:text-amber-400 font-medium transition-colors"
-          >
-            Edit
-          </button>
-          <button
-            onClick={() => onDelete(task.id)}
-            className="text-xs text-slate-600 hover:text-rose-400 font-medium transition-colors"
-          >
-            Delete
-          </button>
+          {canEdit && (
+            <button
+              onClick={() => onEdit(task)}
+              className="text-xs text-slate-500 hover:text-amber-400 font-medium transition-colors"
+            >
+              Edit
+            </button>
+          )}
+          {canDelete && (
+            <button
+              onClick={() => onDelete(task.id)}
+              className="text-xs text-slate-600 hover:text-rose-400 font-medium transition-colors"
+            >
+              Delete
+            </button>
+          )}
+          {!canEdit && !canDelete && (
+            <span className="text-xs text-slate-700 italic">View only</span>
+          )}
         </div>
       </div>
+    </div>
+  );
+};
+
+// Filter Bar
+const FilterBar = ({ filters, setFilters, users }) => {
+  const handleChange = (key, value) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+  };
+
+  return (
+    <div className="flex items-center gap-3 flex-wrap">
+      {/* Status filter */}
+      <div className="relative">
+        <select
+          className="bg-slate-800 border border-slate-700 rounded-lg pl-3 pr-8 py-2 text-xs text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition appearance-none"
+          value={filters.status}
+          onChange={(e) => handleChange("status", e.target.value)}
+        >
+          <option value="">All Statuses</option>
+          <option value="todo">To Do</option>
+          <option value="in_progress">In Progress</option>
+          <option value="done">Done</option>
+        </select>
+        <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 text-[10px]">
+          ▾
+        </span>
+      </div>
+
+      {/* Assigned To filter */}
+      <div className="relative">
+        <select
+          className="bg-slate-800 border border-slate-700 rounded-lg pl-3 pr-8 py-2 text-xs text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition appearance-none"
+          value={filters.assigned_to}
+          onChange={(e) => handleChange("assigned_to", e.target.value)}
+        >
+          <option value="">All Assignees</option>
+          <option value="unassigned">Unassigned</option>
+          {users.map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.name}
+            </option>
+          ))}
+        </select>
+        <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 text-[10px]">
+          ▾
+        </span>
+      </div>
+
+      {/* Clear filters */}
+      {(filters.status || filters.assigned_to) && (
+        <button
+          onClick={() => setFilters({ status: "", assigned_to: "" })}
+          className="text-xs text-slate-500 hover:text-rose-400 border border-slate-700 hover:border-rose-800 rounded-lg px-3 py-2 transition-colors"
+        >
+          Clear ✕
+        </button>
+      )}
+
+      {/* Active filter indicators */}
+      {filters.status && (
+        <span className={`text-xs px-2.5 py-1 rounded-full ${STATUS_CONFIG[filters.status]?.classes}`}>
+          {STATUS_CONFIG[filters.status]?.label}
+        </span>
+      )}
+      {filters.assigned_to && filters.assigned_to !== "unassigned" && (
+        <span className="text-xs px-2.5 py-1 rounded-full bg-indigo-900/60 text-indigo-300 border border-indigo-800">
+          {users.find((u) => u.id === filters.assigned_to)?.name ?? ""}
+        </span>
+      )}
+      {filters.assigned_to === "unassigned" && (
+        <span className="text-xs px-2.5 py-1 rounded-full bg-slate-700 text-slate-400 border border-slate-600">
+          Unassigned
+        </span>
+      )}
     </div>
   );
 };
@@ -286,6 +386,7 @@ const Dashboard = () => {
   const [activitiesLoading, setActivitiesLoading] = useState(false);
   const [users, setUsers] = useState([]);
   const [editingTask, setEditingTask] = useState(null);
+  const [filters, setFilters] = useState({ status: "", assigned_to: "" });
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -319,21 +420,35 @@ const Dashboard = () => {
     }
   }, []);
 
-  useEffect(() => {
-    const loadTasks = async () => {
+  const loadTasks = useCallback(
+    async (activeFilters = {}) => {
+      // Strip empty values so the service doesn't send blank query params
+      const cleanFilters = Object.fromEntries(
+        Object.entries(activeFilters).filter(([, v]) => v !== "")
+      );
       try {
-        const res = await TaskService.getTasks();
+        const res = await TaskService.getTasks(cleanFilters);
         const data = Array.isArray(res) ? res : res?.tasks || [];
         setTasks(data);
+        console.log(data);
+        
       } catch (err) {
         console.error("Load tasks failed", err);
         setTasks([]);
       }
-    };
-    loadTasks();
+    },
+    [setTasks]
+  );
+
+  // Re-fetch whenever filters change
+  useEffect(() => {
+    loadTasks(filters);
+  }, [filters, loadTasks]);
+
+  useEffect(() => {
     loadActivities();
     loadUsers();
-  }, [setTasks, loadActivities, loadUsers]);
+  }, [loadActivities, loadUsers]);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -529,12 +644,22 @@ const Dashboard = () => {
 
           {/* Task Columns */}
           <section>
-            <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-4">
-              Tasks
-            </h2>
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+              <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+                Tasks
+              </h2>
+              <FilterBar
+                filters={filters}
+                setFilters={setFilters}
+                users={users}
+              />
+            </div>
+
             {safeTasks.length === 0 ? (
               <div className="text-center py-16 text-slate-600 text-sm">
-                No tasks yet. Create one above.
+                {filters.status || filters.assigned_to
+                  ? "No tasks match the current filters."
+                  : "No tasks yet. Create one above."}
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -556,6 +681,7 @@ const Dashboard = () => {
                           key={task.id}
                           task={task}
                           users={users}
+                          currentUser={user}
                           onUpdate={handleUpdate}
                           onDelete={handleDelete}
                           onEdit={setEditingTask}

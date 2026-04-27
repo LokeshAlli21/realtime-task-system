@@ -34,12 +34,17 @@ class TaskService {
     }
   }
 
-  async getTasks() {
+  async getTasks(filters = {}) {
     try {
-      const res = await fetch(`${this.baseUrl}/api/tasks`, {
-        method: "GET",
-        headers: this.getAuthHeaders(true),
-      });
+      const query = new URLSearchParams(filters).toString();
+
+      const res = await fetch(
+        `${this.baseUrl}/api/tasks${query ? `?${query}` : ""}`,
+        {
+          method: "GET",
+          headers: this.getAuthHeaders(true),
+        }
+      );
 
       return await res.json();
     } catch (err) {

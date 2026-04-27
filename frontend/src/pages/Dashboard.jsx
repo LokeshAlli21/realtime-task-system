@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { AppContext } from "../context/AppContext";
 import TaskService from "../services/task.service";
 import SocketService from "../services/socket.service";
-import taskService from "../services/task.service";
 import authService from "../services/auth.service";
 import ActivityFeed from "../components/ActivityFeed";
 import { formatRelativeTime } from "../components/ActivityFeed";

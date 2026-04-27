@@ -43,7 +43,17 @@ class SocketService {
   }
 
   onActivityCreated(callback) {
-    this.socket.on("activity_created", callback);
+    if (!this.socket) return;
+
+    const handler = (data) => {
+      if (typeof callback === "function") {
+        callback(data);
+      }
+    };
+
+    this.socket.on("activity_created", handler);
+
+    return handler; // 👈 IMPORTANT
   }
 
   // cleanup helpers
@@ -53,8 +63,9 @@ class SocketService {
     this.socket.off("task_deleted");
   }
 
-  offActivity() {
-    this.socket.off("activity_created");
+  offActivityCreated(handler) {
+    if (!this.socket) return;
+    this.socket.off("activity_created", handler);
   }
 
   disconnect() {

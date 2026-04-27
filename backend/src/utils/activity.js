@@ -13,6 +13,7 @@ export const logActivity = async ({
             returning *`,
             [type, task_id, user_id, message]
         )
+        
         return result.rows[0]
     } catch (error) {
         console.log('Activity log failed: ', error.message)

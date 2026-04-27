@@ -5,7 +5,7 @@ import {
 } from "../sockets/events.js"
 import { logActivity } from "../utils/activity.js"
 
-export const createTaskService = async ({title, description, status, assigned_to, userId}) => {
+export const createTaskService = async ({title, description, status, assigned_to, userId, userName}) => {
 
         const result = await query(
             `insert into tasks (title, description, status, created_by, assigned_to)
@@ -20,11 +20,17 @@ export const createTaskService = async ({title, description, status, assigned_to
             type: 'task_created',
             task_id: task.id,
             user_id: userId,
-            message: `Task "${task.title}" is created`
+            message: `Task "${task.title}" is created`,
+            created_at: new Date().toISOString(),
         })
 
         emitToAll(SOCKET_EVENTS.TASK_CREATED, {task})
-        emitToAll(SOCKET_EVENTS.ACTIVITY_CREATED, {activity})
+        emitToAll(SOCKET_EVENTS.ACTIVITY_CREATED, {
+            activity: {
+                ...activity,
+                user_name: userName,
+            },
+        });
 
         return task
 }
@@ -63,7 +69,8 @@ export const updateTaskService = async ({
     description,
     status,
     assigned_to,
-    userId
+    userId,
+    userName
 }) => {
 
     const existing = await query(
@@ -116,18 +123,24 @@ export const updateTaskService = async ({
             type: 'task_assigned',
             task_id: updatedTask.id,
             user_id: userId,
-            message: `Task assigned to user ${assigned_to}`
+            message: `Task assigned to user ${assigned_to}`,
+            created_at: new Date().toISOString(),
         })
     }
 
     // 5. socket events
     emitToAll(SOCKET_EVENTS.TASK_UPDATED, { task: updatedTask })
-    emitToAll(SOCKET_EVENTS.ACTIVITY_CREATED, {activity})
+    emitToAll(SOCKET_EVENTS.ACTIVITY_CREATED, {
+        activity: {
+            ...activity,
+            user_name: userName,
+        },
+    });
 
     return updatedTask
 }
 
-export const deleteTaskService = async ({ id, userId }) => {
+export const deleteTaskService = async ({ id, userId, userName }) => {
 
     const existing = await query(
         `select * from tasks where id = $1 and is_deleted = false`,
@@ -160,11 +173,22 @@ export const deleteTaskService = async ({ id, userId }) => {
         type: 'task_deleted',
         task_id: id,
         user_id: userId,
-        message: 'Task deleted'
+        message: `Task "${task.title}" is deleted`,
+        created_at: new Date().toISOString(),
     })
 
     emitToAll(SOCKET_EVENTS.TASK_DELETED, { taskId: id })
-    emitToAll(SOCKET_EVENTS.ACTIVITY_CREATED, {activity})
+    emitToAll(SOCKET_EVENTS.ACTIVITY_CREATED, 
+    {activity: {
+        ...activity,
+        user_name: userName,
+    },})
+    emitToAll(SOCKET_EVENTS.ACTIVITY_CREATED, {
+        activity: {
+            ...activity,
+            user_name: userName,
+        },
+    });
 
     return {id}
 }

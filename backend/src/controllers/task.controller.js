@@ -31,6 +31,7 @@ export const createTask = async (req, res, next) => {
             status: taskStatus,
             assigned_to,
             userId: req.user.id,
+            userName: req.user.name,
         })
 
         return res.status(201).json({
@@ -89,7 +90,8 @@ export const updateTask = async (req, res, next) => {
             description,
             status,
             assigned_to,
-            userId: req.user.id
+            userId: req.user.id,
+            userName: req.user.name,
         })
 
         return res.status(200).json({
@@ -109,7 +111,8 @@ export const deleteTask = async (req, res, next) => {
 
         await deleteTaskService({
             id,
-            userId: req.user.id
+            userId: req.user.id,
+            userName: req.user.name,
         })
 
         return res.json({

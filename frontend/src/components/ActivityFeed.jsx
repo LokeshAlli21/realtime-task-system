@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import taskService from "../services/task.service";
+import socketService from "../services/socket.service";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -249,6 +250,32 @@ const ActivityFeed = ({ onExternalRefresh }) => {
   useEffect(() => {
     loadActivities();
   }, [loadActivities]);
+
+const token = localStorage.getItem("token");
+
+useEffect(() => {
+  if (!token) return;
+
+  socketService.connect(token);
+
+  const handler = (data) => {
+    const newActivity = data?.activity;
+    if (!newActivity) return;
+
+    setActivities((prev) => {
+      const exists = prev.some((a) => a.id === newActivity.id);
+      if (exists) return prev;
+
+      return [newActivity, ...prev];
+    });
+  };
+
+  socketService.onActivityCreated(handler);
+
+  return () => {
+    socketService.offActivityCreated();
+  };
+}, [token]);
 
   // Expose a method so parent can trigger refresh (e.g. after socket events)
   // Pass `refresh` as a prop callback if needed, or use a ref externally.

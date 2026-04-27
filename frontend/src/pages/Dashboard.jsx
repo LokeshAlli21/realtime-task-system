@@ -584,7 +584,7 @@ const Dashboard = () => {
               />
               <input
                 className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
-                placeholder="Description (optional)"
+                placeholder="Description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleCreate()}
@@ -596,7 +596,7 @@ const Dashboard = () => {
                   value={assignedTo}
                   onChange={(e) => setAssignedTo(e.target.value)}
                 >
-                  <option value="">— Assign to (optional) —</option>
+                  <option value="">— Assign to —</option>
                   {users.map((u) => (
                     <option key={u.id} value={u.id}>
                       {u.name} {u.id === user?.id ? "(you)" : ""}

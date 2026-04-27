@@ -318,7 +318,12 @@ useEffect(() => {
             {activities.length === 0 ? "No activity yet." : "No results for current filters."}
           </div>
         ) : (
-          <ul className="divide-y divide-slate-800 max-h-80 lg:max-h-[calc(100vh-22rem)] overflow-y-auto">
+          <ul className="divide-y divide-slate-800 max-h-80 lg:max-h-[calc(100vh-22rem)] overflow-y-auto
+              [&::-webkit-scrollbar]:w-2
+              [&::-webkit-scrollbar-track]:bg-slate-100
+              [&::-webkit-scrollbar-thumb]:bg-slate-300
+              dark:[&::-webkit-scrollbar-track]:bg-slate-800
+              dark:[&::-webkit-scrollbar-thumb]:bg-slate-600">
             {visibleActivities.map((activity) => (
               <ActivityItem key={activity.id} activity={activity} />
             ))}
